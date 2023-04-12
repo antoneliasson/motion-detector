@@ -87,7 +87,7 @@ void lis2dh12_event_handler(twr_lis2dh12_t *self, twr_lis2dh12_event_t event, vo
         // Successfully read accelerometer vectors?
         if (twr_lis2dh12_get_result_g(self, &result))
         {
-            //twr_atci_printf("APP: Acceleration = [%.2f,%.2f,%.2f]", result.x_axis, result.y_axis, result.z_axis);
+            //twr_atci_printfln("APP: Acceleration = [%.2f,%.2f,%.2f]", result.x_axis, result.y_axis, result.z_axis);
 
             // Update dice with new vectors
             twr_dice_feed_vectors(&dice, result.x_axis, result.y_axis, result.z_axis);
@@ -107,7 +107,7 @@ void lis2dh12_event_handler(twr_lis2dh12_t *self, twr_lis2dh12_event_t event, vo
                 // Convert dice face to integer
                 int orientation = face;
 
-                //twr_atci_printf("APP: Publish orientation = %d", orientation);
+                //twr_atci_printfln("APP: Publish orientation = %d", orientation);
 
                 // Publish orientation message on radio
                 // Be careful, this topic is only development state, can be change in future.
@@ -118,7 +118,7 @@ void lis2dh12_event_handler(twr_lis2dh12_t *self, twr_lis2dh12_event_t event, vo
     // Error event?
     else if (event == TWR_LIS2DH12_EVENT_ERROR)
     {
-        twr_atci_printf("APP: Accelerometer error");
+        twr_atci_printfln("APP: Accelerometer error");
     }
 }
 
@@ -193,7 +193,7 @@ void pir_event_handler(twr_module_pir_t *self, twr_module_pir_event_t event, voi
         pir_event_count++;
         pir_presence_count++;
 
-        twr_atci_printf("PIR Event Count %d", pir_event_count);
+        twr_atci_printfln("PIR Event Count %d", pir_event_count);
 
         if (config.pir_pub_min_interval != 0 && pir_next_pub < twr_scheduler_get_spin_tick())
         {
@@ -201,7 +201,7 @@ void pir_event_handler(twr_module_pir_t *self, twr_module_pir_event_t event, voi
 
             pir_next_pub = twr_scheduler_get_spin_tick() + config.pir_pub_min_interval;
 
-            twr_atci_printf("PIR Event Published %d", pir_event_count);
+            twr_atci_printfln("PIR Event Published %d", pir_event_count);
         }
     }
 }
@@ -301,20 +301,20 @@ bool atci_config_set(twr_atci_param_t *param)
 bool atci_config_action(void)
 {
 
-    twr_atci_printf("$CONFIG: \"PIR Sensitivity\",%d", config.pir_sensitivity);
-    twr_atci_printf("$CONFIG: \"PIR Publish Min Interval\",%lld", config.pir_pub_min_interval / 1000);
+    twr_atci_printfln("$CONFIG: \"PIR Sensitivity\",%d", config.pir_sensitivity);
+    twr_atci_printfln("$CONFIG: \"PIR Publish Min Interval\",%lld", config.pir_pub_min_interval / 1000);
 
-    twr_atci_printf("$CONFIG: \"Presence Enter Threshold\",%d", config.enter.threshold);
-    twr_atci_printf("$CONFIG: \"Presence Leave Threshold\",%d", config.leave.threshold);
-    twr_atci_printf("$CONFIG: \"Presence Interval\",%lld", config.enter.interval / 1000);
+    twr_atci_printfln("$CONFIG: \"Presence Enter Threshold\",%d", config.enter.threshold);
+    twr_atci_printfln("$CONFIG: \"Presence Leave Threshold\",%d", config.leave.threshold);
+    twr_atci_printfln("$CONFIG: \"Presence Interval\",%lld", config.enter.interval / 1000);
 
-    twr_atci_printf("$CONFIG: \"Temperature Measure Interval\",%lld", config.temperature_measure_interval / 1000);
-    twr_atci_printf("$CONFIG: \"Temperature Publish Interval\",%lld", config.temperature_publish_interval / 1000);
-    twr_atci_printf("$CONFIG: \"Temperature Publish Value Change\",%.1f", config.temperature_publish_value_change);
+    twr_atci_printfln("$CONFIG: \"Temperature Measure Interval\",%lld", config.temperature_measure_interval / 1000);
+    twr_atci_printfln("$CONFIG: \"Temperature Publish Interval\",%lld", config.temperature_publish_interval / 1000);
+    twr_atci_printfln("$CONFIG: \"Temperature Publish Value Change\",%.1f", config.temperature_publish_value_change);
 
-    twr_atci_printf("$CONFIG: \"Accelerometer Measure Interval\",%lld", config.accelerometer_measure_interval / 1000);
+    twr_atci_printfln("$CONFIG: \"Accelerometer Measure Interval\",%lld", config.accelerometer_measure_interval / 1000);
 
-    twr_atci_printf("$CONFIG: \"Battery Publish Interval\",%lld", config.battery_publish_interval / 1000);
+    twr_atci_printfln("$CONFIG: \"Battery Publish Interval\",%lld", config.battery_publish_interval / 1000);
 
     return true;
 }
@@ -412,7 +412,7 @@ void application_task()
     twr_radio_pub_int("presence/-/state", &presence_publish);
     twr_radio_pub_int("presence/-/events", &pir_presence_count);
 
-    twr_atci_printf("Presence: %d, Presence Event Count %d", presence_flag, pir_presence_count);
+    twr_atci_printfln("Presence: %d, Presence Event Count %d", presence_flag, pir_presence_count);
 
     pir_presence_count = 0;
 
