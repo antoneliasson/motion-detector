@@ -12,6 +12,8 @@
 #define PRESENCE_LEAVE_THRESHOLD 2
 #define PRESENCE_INTERVAL (2 * 60 * 1000)
 
+#define MOTION_DETECTOR_TIMEOUT (10 * 60 * 1000)
+
 // LED instance
 twr_led_t led;
 
@@ -28,6 +30,8 @@ twr_tick_t pir_next_pub = 0;
 
 int pir_presence_count = 0;
 bool presence_flag = false;
+
+twr_scheduler_task_id_t task_motion_timeout_id;
 
 typedef struct Configuration
 {
@@ -46,6 +50,8 @@ typedef struct Configuration
 
     twr_tick_t battery_publish_interval;
 
+    bool motion_relay_enabled;
+    twr_tick_t motion_detector_timeout;
 } Configuration;
 
 Configuration config;
@@ -61,8 +67,10 @@ Configuration config_default = {
     .temperature_publish_interval = TEMPERATURE_PUBLISH_INTEVAL,
     .temperature_publish_value_change = TEMPERATURE_PUBLISH_VALUE_CHANGE,
 
+    .battery_publish_interval = BATTERY_PUBLISH_INTERVAL,
 
-    .battery_publish_interval = BATTERY_PUBLISH_INTERVAL
+    .motion_relay_enabled = true,
+    .motion_detector_timeout = MOTION_DETECTOR_TIMEOUT,
 };
 
 void button_event_handler(twr_button_t *self, twr_button_event_t event, void *event_param)
@@ -144,6 +152,14 @@ void pir_event_handler(twr_module_pir_t *self, twr_module_pir_event_t event, voi
             pir_next_pub = twr_scheduler_get_spin_tick() + config.pir_pub_min_interval;
 
             twr_atci_printfln("PIR Event Published %d", pir_event_count);
+
+        }
+        if (config.motion_relay_enabled)
+        {
+            twr_atci_println("Relay on");
+            twr_module_power_relay_set_state(true);
+
+            twr_scheduler_plan_from_now(task_motion_timeout_id, config.motion_detector_timeout);
         }
     }
 }
@@ -230,6 +246,17 @@ bool atci_config_set(twr_atci_param_t *param)
         return true;
     }
 
+    if (strncmp(name, "Motion Detector Timeout", sizeof(name)) == 0)
+    {
+        config.motion_detector_timeout = value * 1000;
+
+        if (twr_module_power_relay_get_state())
+        {
+            twr_scheduler_plan_from_now(task_motion_timeout_id, config.motion_detector_timeout);
+        }
+        return true;
+    }
+
     return false;
 }
 
@@ -249,6 +276,8 @@ bool atci_config_action(void)
 
     twr_atci_printfln("$CONFIG: \"Battery Publish Interval\",%lld", config.battery_publish_interval / 1000);
 
+    twr_atci_printfln("$CONFIG: \"Motion Detector Timeout\",%lld", config.motion_detector_timeout / 1000);
+
     return true;
 }
 
@@ -264,6 +293,12 @@ bool atci_w_action(void)
     twr_config_save();
 
     return true;
+}
+
+static void task_motion_timeout()
+{
+    twr_atci_println("Relay off");
+    twr_module_power_relay_set_state(false);
 }
 
 void application_init(void)
@@ -297,6 +332,10 @@ void application_init(void)
     twr_module_pir_init(&pir);
     twr_module_pir_set_event_handler(&pir, pir_event_handler, NULL);
     twr_module_pir_set_sensitivity(&pir, TWR_MODULE_PIR_SENSITIVITY_MEDIUM);
+
+    twr_module_power_init();
+
+    task_motion_timeout_id = twr_scheduler_register(task_motion_timeout, NULL, TWR_TICK_INFINITY);
 
     static const twr_atci_command_t commands[] = {
             { "&F", atci_f_action, NULL, NULL, NULL, "Restore configuration to factory defaults" },
