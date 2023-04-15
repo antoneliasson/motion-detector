@@ -1,6 +1,5 @@
 #include <application.h>
 
-#define BATTERY_PUBLISH_INTERVAL (60 * 60 * 1000)
 #define TEMPERATURE_PUBLISH_INTEVAL (15 * 60 * 1000)
 #define TEMPERATURE_PUBLISH_VALUE_CHANGE 1.0f
 #define TEMPERATURE_MEASURE_INTERVAL (5 * 1000)
@@ -48,8 +47,6 @@ typedef struct Configuration
     twr_tick_t temperature_publish_interval;
     float temperature_publish_value_change;
 
-    twr_tick_t battery_publish_interval;
-
     bool motion_relay_enabled;
     twr_tick_t motion_detector_timeout;
 } Configuration;
@@ -66,8 +63,6 @@ Configuration config_default = {
     .temperature_measure_interval = TEMPERATURE_MEASURE_INTERVAL,
     .temperature_publish_interval = TEMPERATURE_PUBLISH_INTEVAL,
     .temperature_publish_value_change = TEMPERATURE_PUBLISH_VALUE_CHANGE,
-
-    .battery_publish_interval = BATTERY_PUBLISH_INTERVAL,
 
     .motion_relay_enabled = true,
     .motion_detector_timeout = MOTION_DETECTOR_TIMEOUT,
@@ -95,21 +90,6 @@ void button_event_handler(twr_button_t *self, twr_button_event_t event, void *ev
         twr_config_save();
 
         twr_led_blink(&led, config.pir_sensitivity + 1);
-    }
-}
-
-void battery_event_handler(twr_module_battery_event_t event, void *event_param)
-{
-    (void) event_param;
-
-    float voltage;
-
-    if (event == TWR_MODULE_BATTERY_EVENT_UPDATE)
-    {
-        if (twr_module_battery_get_voltage(&voltage))
-        {
-            twr_radio_pub_battery(&voltage);
-        }
     }
 }
 
@@ -239,13 +219,6 @@ bool atci_config_set(twr_atci_param_t *param)
         return true;
     }
 
-    if (strncmp(name, "Battery Publish Interval", sizeof(name)) == 0)
-    {
-        config.battery_publish_interval = value * 1000;
-        twr_module_battery_set_update_interval(config.battery_publish_interval);
-        return true;
-    }
-
     if (strncmp(name, "Motion Detector Timeout", sizeof(name)) == 0)
     {
         config.motion_detector_timeout = value * 1000;
@@ -273,8 +246,6 @@ bool atci_config_action(void)
     twr_atci_printfln("$CONFIG: \"Temperature Measure Interval\",%lld", config.temperature_measure_interval / 1000);
     twr_atci_printfln("$CONFIG: \"Temperature Publish Interval\",%lld", config.temperature_publish_interval / 1000);
     twr_atci_printfln("$CONFIG: \"Temperature Publish Value Change\",%.1f", config.temperature_publish_value_change);
-
-    twr_atci_printfln("$CONFIG: \"Battery Publish Interval\",%lld", config.battery_publish_interval / 1000);
 
     twr_atci_printfln("$CONFIG: \"Motion Detector Timeout\",%lld", config.motion_detector_timeout / 1000);
 
@@ -316,11 +287,6 @@ void application_init(void)
     twr_button_set_scan_interval(&button, 20);
     twr_button_set_hold_time(&button, 1000);
     twr_button_set_event_handler(&button, button_event_handler, NULL);
-
-    // Initialize battery
-    twr_module_battery_init();
-    twr_module_battery_set_event_handler(battery_event_handler, NULL);
-    twr_module_battery_set_update_interval(config.battery_publish_interval);
 
     // Initialize thermometer sensor on core module
     temperature_event_param.channel = TWR_RADIO_PUB_CHANNEL_R1_I2C0_ADDRESS_ALTERNATE;
