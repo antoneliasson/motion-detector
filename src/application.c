@@ -8,8 +8,6 @@
 #define PIR_PUB_MIN_INTERVAL  (1 * 60 * 1000)
 #define PIR_SENSITIVITY 1
 
-#define ACCELEROMETER_UPDATE_NORMAL_INTERVAL (5 * 1000)
-
 #define PRESENCE_ENTER_THRESHOLD 4
 #define PRESENCE_LEAVE_THRESHOLD 2
 #define PRESENCE_INTERVAL (2 * 60 * 1000)
@@ -23,12 +21,6 @@ twr_button_t button;
 // Thermometer instance
 twr_tmp112_t tmp112;
 event_param_t temperature_event_param = { .next_pub = 0 };
-
-// Accelerometer instance
-twr_lis2dh12_t lis2dh12;
-
-// Dice instance
-twr_dice_t dice;
 
 twr_module_pir_t pir;
 uint16_t pir_event_count = 0;
@@ -52,8 +44,6 @@ typedef struct Configuration
     twr_tick_t temperature_publish_interval;
     float temperature_publish_value_change;
 
-    twr_tick_t accelerometer_measure_interval;
-
     twr_tick_t battery_publish_interval;
 
 } Configuration;
@@ -71,57 +61,9 @@ Configuration config_default = {
     .temperature_publish_interval = TEMPERATURE_PUBLISH_INTEVAL,
     .temperature_publish_value_change = TEMPERATURE_PUBLISH_VALUE_CHANGE,
 
-    .accelerometer_measure_interval = ACCELEROMETER_UPDATE_NORMAL_INTERVAL,
 
     .battery_publish_interval = BATTERY_PUBLISH_INTERVAL
 };
-
-// This function dispatches accelerometer events
-void lis2dh12_event_handler(twr_lis2dh12_t *self, twr_lis2dh12_event_t event, void *event_param)
-{
-    // Update event?
-    if (event == TWR_LIS2DH12_EVENT_UPDATE)
-    {
-        twr_lis2dh12_result_g_t result;
-
-        // Successfully read accelerometer vectors?
-        if (twr_lis2dh12_get_result_g(self, &result))
-        {
-            //twr_atci_printfln("APP: Acceleration = [%.2f,%.2f,%.2f]", result.x_axis, result.y_axis, result.z_axis);
-
-            // Update dice with new vectors
-            twr_dice_feed_vectors(&dice, result.x_axis, result.y_axis, result.z_axis);
-
-            // This variable holds last dice face
-            static twr_dice_face_t last_face = TWR_DICE_FACE_UNKNOWN;
-
-            // Get current dice face
-            twr_dice_face_t face = twr_dice_get_face(&dice);
-
-            // Did dice face change from last time?
-            if (last_face != face)
-            {
-                // Remember last dice face
-                last_face = face;
-
-                // Convert dice face to integer
-                int orientation = face;
-
-                //twr_atci_printfln("APP: Publish orientation = %d", orientation);
-
-                // Publish orientation message on radio
-                // Be careful, this topic is only development state, can be change in future.
-                twr_radio_pub_int("orientation", &orientation);
-            }
-        }
-    }
-    // Error event?
-    else if (event == TWR_LIS2DH12_EVENT_ERROR)
-    {
-        twr_atci_printfln("APP: Accelerometer error");
-    }
-}
-
 
 void button_event_handler(twr_button_t *self, twr_button_event_t event, void *event_param)
 {
@@ -281,13 +223,6 @@ bool atci_config_set(twr_atci_param_t *param)
         return true;
     }
 
-    if (strncmp(name, "Accelerometer Measure Interval", sizeof(name)) == 0)
-    {
-        config.accelerometer_measure_interval = value * 1000;
-        twr_lis2dh12_set_update_interval(&lis2dh12, config.accelerometer_measure_interval);
-        return true;
-    }
-
     if (strncmp(name, "Battery Publish Interval", sizeof(name)) == 0)
     {
         config.battery_publish_interval = value * 1000;
@@ -311,8 +246,6 @@ bool atci_config_action(void)
     twr_atci_printfln("$CONFIG: \"Temperature Measure Interval\",%lld", config.temperature_measure_interval / 1000);
     twr_atci_printfln("$CONFIG: \"Temperature Publish Interval\",%lld", config.temperature_publish_interval / 1000);
     twr_atci_printfln("$CONFIG: \"Temperature Publish Value Change\",%.1f", config.temperature_publish_value_change);
-
-    twr_atci_printfln("$CONFIG: \"Accelerometer Measure Interval\",%lld", config.accelerometer_measure_interval / 1000);
 
     twr_atci_printfln("$CONFIG: \"Battery Publish Interval\",%lld", config.battery_publish_interval / 1000);
 
@@ -364,14 +297,6 @@ void application_init(void)
     twr_module_pir_init(&pir);
     twr_module_pir_set_event_handler(&pir, pir_event_handler, NULL);
     twr_module_pir_set_sensitivity(&pir, TWR_MODULE_PIR_SENSITIVITY_MEDIUM);
-
-    // Initialize accelerometer
-    twr_lis2dh12_init(&lis2dh12, TWR_I2C_I2C0, 0x19);
-    twr_lis2dh12_set_event_handler(&lis2dh12, lis2dh12_event_handler, NULL);
-    twr_lis2dh12_set_update_interval(&lis2dh12, config.accelerometer_measure_interval);
-
-    // Initialize dice
-    twr_dice_init(&dice, TWR_DICE_FACE_UNKNOWN);
 
     static const twr_atci_command_t commands[] = {
             { "&F", atci_f_action, NULL, NULL, NULL, "Restore configuration to factory defaults" },
