@@ -235,6 +235,13 @@ bool atci_config_set(twr_atci_param_t *param)
     return false;
 }
 
+bool atci_config_help(void)
+{
+    twr_atci_println("Assignment syntax: AT$CONFIG=\"Parameter Name\",value");
+
+    return true;
+}
+
 bool atci_config_action(void)
 {
 
@@ -310,7 +317,7 @@ void application_init(void)
     static const twr_atci_command_t commands[] = {
             { "&F", atci_f_action, NULL, NULL, NULL, "Restore configuration to factory defaults" },
             { "&W", atci_w_action, NULL, NULL, NULL, "Store configuration to non-volatile memory" },
-            { "$CONFIG", atci_config_action, atci_config_set, NULL, NULL, "Get/set config parameters"},
+            { "$CONFIG", atci_config_action, atci_config_set, atci_config_action, atci_config_help, "Get/set config parameters"},
             TWR_ATCI_COMMAND_CLAC,
             TWR_ATCI_COMMAND_HELP
     };
