@@ -136,8 +136,10 @@ void pir_event_handler(twr_module_pir_t *self, twr_module_pir_event_t event, voi
         }
         if (config.motion_relay_enabled)
         {
+            bool on = true;
             twr_atci_println("Relay on");
-            twr_module_power_relay_set_state(true);
+            twr_module_power_relay_set_state(on);
+            twr_radio_pub_state(TWR_RADIO_PUB_STATE_POWER_MODULE_RELAY, &on);
 
             twr_scheduler_plan_from_now(task_motion_timeout_id, config.motion_detector_timeout);
         }
@@ -268,8 +270,10 @@ bool atci_w_action(void)
 
 static void task_motion_timeout()
 {
+    bool off = false;
     twr_atci_println("Relay off");
-    twr_module_power_relay_set_state(false);
+    twr_module_power_relay_set_state(off);
+    twr_radio_pub_state(TWR_RADIO_PUB_STATE_POWER_MODULE_RELAY, &off);
 }
 
 void application_init(void)
