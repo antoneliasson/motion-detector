@@ -68,6 +68,34 @@ Configuration config_default = {
     .motion_detector_timeout = MOTION_DETECTOR_TIMEOUT,
 };
 
+void radio_gpio_state_set(uint64_t *id, const char *topic, void *value, void *param);
+
+static const twr_radio_sub_t subs[] = {
+    {"gpio/p1/state/set", TWR_RADIO_SUB_PT_BOOL, radio_gpio_state_set, (void *)TWR_GPIO_P1},
+};
+
+static const char *gpio_channel_to_subtopic(twr_gpio_channel_t ch)
+{
+    if (ch == TWR_GPIO_P1)
+    {
+        return "gpio/p1/state";
+    }
+    return NULL;
+}
+
+void radio_gpio_state_set(uint64_t *id, const char *topic, void *value, void *param)
+{
+    bool *state = value;
+    twr_gpio_channel_t ch = (twr_gpio_channel_t)param;
+    const char *subtopic = gpio_channel_to_subtopic(ch);
+
+    twr_gpio_set_output(ch, *state);
+    if (subtopic)
+    {
+        twr_radio_pub_bool(subtopic, state);
+    }
+}
+
 void button_event_handler(twr_button_t *self, twr_button_event_t event, void *event_param)
 {
     (void) self;
@@ -312,6 +340,9 @@ void application_init(void)
 
     twr_module_power_init();
 
+    twr_gpio_init(TWR_GPIO_P1);
+    twr_gpio_set_mode(TWR_GPIO_P1, TWR_GPIO_MODE_OUTPUT);
+
     task_motion_timeout_id = twr_scheduler_register(task_motion_timeout, NULL, TWR_TICK_INFINITY);
 
     static const twr_atci_command_t commands[] = {
@@ -323,6 +354,7 @@ void application_init(void)
     };
     twr_atci_init(commands, TWR_ATCI_COMMANDS_LENGTH(commands));
 
+    twr_radio_set_subs((twr_radio_sub_t *)subs, sizeof(subs)/sizeof(twr_radio_sub_t));
     twr_radio_pairing_request("motion-detector", FW_VERSION);
 
     // Replan application_task to the first interval
