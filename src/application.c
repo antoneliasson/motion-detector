@@ -291,7 +291,7 @@ void application_init(void)
     twr_led_init(&led, TWR_GPIO_LED, false, false);
     twr_led_set_mode(&led, TWR_LED_MODE_OFF);
 
-    twr_radio_init(TWR_RADIO_MODE_NODE_SLEEPING);
+    twr_radio_init(TWR_RADIO_MODE_NODE_LISTENING);
 
     // Initialize button
     twr_button_init(&button, TWR_GPIO_BUTTON, TWR_GPIO_PULL_DOWN, false);
